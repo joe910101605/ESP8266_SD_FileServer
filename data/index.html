@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>File Directory</title>
+    <meta name="keywords" content="xinac.cn,xinac.com,xinac.net,xinac">
+    <meta name="description" content="www.wiyixiao4.com">
+
+    <style>
+        body,
+        html {
+            background: #fff;
+            /*font-family: "Bitstream Vera Sans", "Lucida Grande", "Lucida Sans Unicode", Lucidux, Verdana, Lucida, sans-serif;*/
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        thead tr th {
+            background-color: #009688;
+        }
+
+        tr:nth-child(even) {
+            background: #f4f4f4;
+        }
+
+        th,
+        td {
+            padding: 0.3em 1.5em;
+        }
+
+        th {
+            text-align: left;
+            font-weight: bold;
+            background: #eee;
+            border-bottom: 1px solid #aaa;
+
+            height: 30px;
+        }
+
+        #list {
+            border: 1px solid #aaa;
+            width: 100%;
+        }
+
+        a {
+            color: black;
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: red;
+            text-decoration: none;
+        }
+
+        footer {
+            margin-top: 20px;
+        }
+
+        footer p {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        footer > div {
+            border: 1px dashed #ccc;
+            padding: 10px;
+        }
+
+        /*Modal*/
+        #pageMask {
+            visibility: hidden;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            z-index: 1100;
+            background-color: #333;
+            opacity: 0.6;
+        }
+
+        #ModalBody {
+            background: white;
+            width: 50% !important;
+            height: 50% !important;
+            position: absolute;
+            left: 25%;
+            top: 25%;
+            z-index: 1101;
+            border: 1px solid;
+            display: none;
+        }
+
+        #closeModalBtn {
+            position: static;
+            margin-top: 5px;
+            margin-right: 1%;
+            float: right;
+            font-size: 14px;
+            background: #ccccc0;
+            cursor: pointer;
+        }
+
+        #img_view {
+            width: 300px;
+        }
+
+        #img_box {
+            text-align: center;
+        }
+    </style>
+
+</head>
+<body>
+<h1 id="path_info">Directory：/</h1>
+
+<div id="uploader"></div>
+<table id="list">
+    <thead>
+    <tr>
+        <th style="width:55%"><span>File Name</span>&nbsp;</th>
+        <th style="width:20%"><span>File Size</span>&nbsp;</th>
+        <th style="width:25%"><span>Date</span>&nbsp;</th>
+        <th style="width:25%"><span>Delete</span>&nbsp;</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!--<tr>-->
+    <!--<td class="link"><a href="" title="videos">Images/</a></td>-->
+    <!--<td class="size">-</td>-->
+    <!--<td class="date">2022-02-22 13:17</td>-->
+    <!--</tr>-->
+    </tbody>
+</table>
+<footer>
+    <p>
+        <button onclick="prevPage()">&lt;</button>
+        &nbsp;
+        <span id="page_info">1/1</span>&nbsp;
+        <button onclick="nextPage()">&gt;</button>
+        <button style="float: right"><a href="/">Home</a></button>
+    </p>
+
+    <div style="display: none;">
+    </div>
+</footer>
+<div id="pageMask"></div>
+<div id="ModalBody">
+    <button id="closeModalBtn" style="display: none;">X</button>
+    <p>&nbsp;Display</p>
+
+    <div id="img_box">
+        <img id="img_view" src="" alt="Picture">
+    </div>
+</div>
+
+<script type="text/javascript">
+    var xmlHttp;
+    var curPageIndex = 1;
+    var pageCount = 1;
+    var lastUrlPath = "";
+    var currentUrlPath = "";
+
+    var tbList = document.getElementById("list");
+    var tbBody = tbList.tBodies[0];
+    var pageInfoSpan = document.getElementById("page_info");
+    var pathInfoH = document.getElementById("path_info");
+    var imgView = document.getElementById("img_view");
+
+    function renderSize(value) {
+        if (null == value || value == '') {
+            return "0 B";
+        }
+        var unitArr = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+        var index = 0;
+        var srcsize = parseFloat(value);
+        index = Math.floor(Math.log(srcsize) / Math.log(1024));
+        var size = srcsize / Math.pow(1024, index);
+        size = size.toFixed(1);//保留的小数位数
+        return size + " " + unitArr[index];
+    }
+
+    function isImageFile(path) {
+        var ext = /(?:\.([^.]+))?$/.exec(path)[1];
+        if (typeof ext !== undefined) {
+            switch (ext) {
+                case "png":
+                case "jpg":
+                case "gif":
+                case "ico":
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    function listPathCreate(path, reload) {
+        return '/list?dir=' + path + '&pn=' + curPageIndex + '&pi=6' + '&reload=' + reload;
+    }
+
+    function getContextPath() {
+        var href = window.location.href;
+        var host = window.location.host;
+        var origin = document.location.origin;
+        console.log(origin);
+        var f1 = href.substring(href.indexOf(host));
+        return f1.substring(f1.indexOf("/"));
+    }
+
+    function clearTable() {
+        if (tbBody !== "undefined") {
+            while (tbBody.hasChildNodes()) {
+                tbBody.removeChild(tbBody.lastChild);
+            }
+        }
+    }
+
+    function insertTableRebackRow() {
+        var tr = document.createElement("tr");
+        if (tbBody !== "undefined") {
+            tbBody.appendChild(tr);
+            var lastIndex = currentUrlPath.lastIndexOf("/");
+            var path = "/";
+            if (lastIndex != 0) {
+                path = currentUrlPath.substring(0, currentUrlPath.length - 1);
+                lastIndex = path.lastIndexOf("/");
+                path = lastIndex == 0 ? "/" : path.substring(0, lastIndex) + "/";
+            }
+            tr.innerHTML = '<tr><td class="link"><a href="javascript:void(0)" path="' + path + '" onclick="onclickUrl(this)">Parent directory/</a></td><td class="size">-</td><td class="date">-</td></tr>'
+        }
+    }
+
+    function insertTableRow(file) {
+        var size = file.isDir ? "-" : renderSize(file.size);
+        var name = file.isDir ? file.name.concat("/") : file.name;
+        var url = currentUrlPath.concat(name);
+        var tr = document.createElement("tr");
+        var td_name = document.createElement("td");
+        var td_size = document.createElement("td");
+        var td_date = document.createElement("td");
+        var td_delete = document.createElement("td");
+
+        tr.appendChild(td_name);
+        tr.appendChild(td_size);
+        tr.appendChild(td_date);
+        tr.appendChild(td_delete);
+
+        if (tbBody !== "undefined") {
+            tbBody.appendChild(tr);
+
+            //javascript:void(0)
+            td_name.innerHTML = '<td class="link"><a href="'+url+'" onclick="onclickUrl(this);return false;" path="' + url + '">' + name + '</a></td>';
+            td_size.innerHTML = '<td class="size">' + size + '</td>';
+            td_date.innerHTML = '<td class="date">' + file.date + '</td>';
+            td_delete.innerHTML = '<input class="delete" style="width: 100%;" onclick="deletePath(this)" path="' + url + '" type="button" value="X"/>'
+        }
+    }
+
+    function parseJson(str) {
+        curPageIndex = str.pageNum;
+        pageCount = str.pageCount;
+        pageInfoSpan.innerHTML = "".concat(curPageIndex, "/", pageCount);
+        currentUrlPath = str.dir;
+
+        clearTable();
+
+        insertTableRebackRow();
+
+        pathInfoH.innerHTML = "Directory：".concat(currentUrlPath);
+        for (var i = 0; i < str.files.length; i++) {
+            insertTableRow(str.files[i]);
+        }
+    }
+
+    function ajaxRequest(url) {
+        var ajax = new XMLHttpRequest();
+        ajax.open('get', url);
+        ajax.send();
+        ajax.onreadystatechange = function () {
+            if (ajax.readyState == 4 && ajax.status == 200) {
+                var json = JSON.parse(ajax.responseText);
+                parseJson(json);
+            }
+        }
+    }
+
+    function onclickUrl(obj) {
+        var path = obj.getAttribute("path");
+        var url;
+        curPageIndex = 1;
+        if (path.endsWith("/")) {
+            url = listPathCreate(path, false);
+            ajaxRequest(url);
+        } else {
+            url = path;
+            if (isImageFile(path)) {
+                expandIframe();
+                imgView.src = url;
+            } else {
+                window.open(url, "_blank");
+            }
+        }
+        return false;
+    }
+
+    function delCb(path) {
+        return function () {
+            if (xmlHttp.readyState == 4) {
+                if (xmlHttp.status != 200) {
+                    alert("ERROR[" + xmlHttp.status + "]: " + xmlHttp.responseText);
+                } else {
+                    ajaxRequest(listPathCreate(currentUrlPath, true));
+                }
+            }
+        }
+    }
+
+    function deletePath(obj) {
+        var filename = obj.getAttribute("path");
+        if(filename.endsWith("/")){
+            filename = filename.substring(0, filename.lastIndexOf('/'));
+        }
+        console.log(filename);
+        xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = delCb(filename);
+        var formData = new FormData();
+        formData.append("path", filename);
+        xmlHttp.open("DELETE", "/edit");
+        xmlHttp.send(formData);
+    }
+
+    function prevPage() {
+        if (--curPageIndex < 1) {
+            alert("No more!");
+            curPageIndex = 1;
+            return;
+        }
+        ajaxRequest(listPathCreate(currentUrlPath, false));
+    }
+
+    function nextPage() {
+        if (++curPageIndex > pageCount) {
+            alert("No more!");
+            curPageIndex = pageCount;
+            return;
+        }
+        ajaxRequest(listPathCreate(currentUrlPath, false));
+    }
+
+    function expandIframe() {
+        var mask = document.getElementById("pageMask");
+        var modal = document.getElementById("ModalBody");
+        var closeBtn = document.getElementById("closeModalBtn");
+
+        modal.style.display = (modal.style.display == "block") ? "none" : "block";
+        closeBtn.style.display = (closeBtn.style.display == "block") ? "none" : "block";
+        mask.style.visibility = (mask.style.visibility == "visible") ? "hidden" : "visible";
+
+        closeBtn.onclick = function () {
+            modal.style.display = (modal.style.display == "block") ? "none" : "block";
+            closeBtn.style.display = (closeBtn.style.display == "block") ? "none" : "block";
+            mask.style.visibility = (mask.style.visibility == "visible") ? "hidden" : "visible";
+        }
+    }
+
+    function createFileUploader(element) {
+        var xmlHttp;
+        var input = document.createElement("input");
+        input.type = "file";
+        input.multiple = false;
+        input.name = "data";
+        document.getElementById(element).appendChild(input);
+        var path = document.createElement("input");
+        path.id = "upload-path";
+        path.type = "text";
+        path.name = "path";
+        path.defaultValue = "/";
+        document.getElementById(element).appendChild(path);
+        var button = document.createElement("button");
+        button.innerHTML = 'Upload';
+        document.getElementById(element).appendChild(button);
+        var mkdir = document.createElement("button");
+        mkdir.innerHTML = 'MkDir';
+        document.getElementById(element).appendChild(mkdir);
+        var uploadinfo = document.createElement("span");
+        document.getElementById(element).appendChild(uploadinfo);
+
+        function httpPostProcessRequest() {
+            if (xmlHttp.readyState == 4) {
+                if (xmlHttp.status != 200) alert("ERROR[" + xmlHttp.status + "]: " + xmlHttp.responseText);
+                else {
+                    //上传成功，请求刷新
+                    ajaxRequest(listPathCreate(currentUrlPath, true));
+                }
+
+                uploadinfo.innerHTML = "";
+            }
+        }
+
+        function createPath(p) {
+            xmlHttp = new XMLHttpRequest();
+            xmlHttp.onreadystatechange = httpPostProcessRequest;
+            var formData = new FormData();
+            formData.append("path", p);
+            xmlHttp.open("PUT", "/edit");
+            xmlHttp.send(formData);
+        }
+
+        mkdir.onclick = function (e) {
+            if (path.value.length < 2) return;
+            var dir = path.value;
+            if (dir.indexOf(".") !== -1) {
+                if (dir.lastIndexOf("/") === 0) return;
+                dir = dir.substring(0, dir.lastIndexOf("/"));
+            }
+            createPath(dir);
+        };
+        button.onclick = function (e) {
+            if (input.files.length === 0) {
+                return;
+            }
+            xmlHttp = new XMLHttpRequest();
+            xmlHttp.onreadystatechange = httpPostProcessRequest;
+            var formData = new FormData();
+            formData.append("data", input.files[0], path.value);
+            // document.getElementByID("msgarea").innerHTML = "<p>" + formData + "</p>";
+            xmlHttp.open("POST", "/edit");
+            xmlHttp.send(formData);
+            uploadinfo.innerHTML = " Uploading...";
+        };
+        input.onclick = function () {
+            input.value = ""; //重置
+        };
+        input.onchange = function (e) {
+            if (input.files.length === 0) return;
+            var filename = input.files[0].name;
+            var ext = /(?:\.([^.]+))?$/.exec(filename)[1];
+            var name = /(.*)\.[^.]+$/.exec(filename)[1];
+            if (typeof name !== undefined) {
+                if (name.length > 12) name = name.substring(0, 12);
+                filename = name;
+            }
+            if (typeof ext !== undefined) {
+                if (ext === "html") ext = "htm";
+                else if (ext === "jpeg") ext = "jpg";
+                filename = filename + "." + ext;
+            }
+            console.log(currentUrlPath);
+            path.value = currentUrlPath;
+            if (path.value === "/" || path.value.lastIndexOf("/") === 0) {
+                path.value = "/" + filename;
+            } else {
+                path.value = path.value.substring(0, path.value.lastIndexOf("/") + 1) + filename;
+            }
+        }
+    }
+
+    window.onload = function () {
+        createFileUploader("uploader");
+
+        currentUrlPath = getContextPath();
+        console.log(currentUrlPath);
+        pathInfoH.innerHTML = "Directory：".concat(currentUrlPath);
+
+        ajaxRequest(listPathCreate(currentUrlPath));
+
+    }
+
+</script>
+
+</body>
+</html>
